@@ -1,0 +1,60 @@
+name: jobsearch-v2
+
+services:
+  jobsearch-v2-app:
+    container_name: jobsearch-v2-app
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    image: jobsearch-v2-app:local
+    working_dir: /var/www/html
+    command: sh -lc "mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs && chown -R www-data:www-data storage bootstrap/cache && php-fpm"
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www/html
+      - jobsearch-v2-vendor:/var/www/html/vendor
+      - jobsearch-v2-storage:/var/www/html/storage
+    networks:
+      - jobsearch-v2-net
+
+  jobsearch-v2-web:
+    container_name: jobsearch-v2-web
+    image: nginx:1.29-alpine
+    depends_on:
+      - jobsearch-v2-app
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - .:/var/www/html:ro
+      - jobsearch-v2-storage:/var/www/html/storage:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - jobsearch-v2-net
+
+  jobsearch-v2-node:
+    container_name: jobsearch-v2-node
+    image: jobsearch-v2-app:local
+    depends_on:
+      - jobsearch-v2-app
+    working_dir: /var/www/html
+    command: sh -lc "mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs && chown -R www-data:www-data storage bootstrap/cache && pnpm install && pnpm run build && sleep infinity"
+    volumes:
+      - .:/var/www/html
+      - jobsearch-v2-node-modules:/var/www/html/node_modules
+      - jobsearch-v2-vendor:/var/www/html/vendor
+      - jobsearch-v2-storage:/var/www/html/storage
+    networks:
+      - jobsearch-v2-net
+
+networks:
+  jobsearch-v2-net:
+    name: jobsearch-v2-net
+
+volumes:
+  jobsearch-v2-vendor:
+    name: jobsearch-v2-vendor
+  jobsearch-v2-node-modules:
+    name: jobsearch-v2-node-modules
+  jobsearch-v2-storage:
+    name: jobsearch-v2-storage

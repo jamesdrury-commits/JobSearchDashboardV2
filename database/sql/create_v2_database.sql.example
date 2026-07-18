@@ -1,0 +1,15 @@
+CREATE DATABASE IF NOT EXISTS job_dashboard_v2
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'jobsearch_v2_app'@'%' IDENTIFIED BY 'replace-with-v2-app-password';
+CREATE USER IF NOT EXISTS 'jobsearch_v2_import'@'%' IDENTIFIED BY 'replace-with-v2-import-password';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP
+  ON job_dashboard_v2.* TO 'jobsearch_v2_app'@'%';
+
+GRANT SELECT ON job_search_assistant.* TO 'jobsearch_v2_import'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON job_dashboard_v2.* TO 'jobsearch_v2_import'@'%';
+
+FLUSH PRIVILEGES;
