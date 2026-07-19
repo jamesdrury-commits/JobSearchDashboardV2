@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\DashboardRunStatus;
 use App\Models\GeneratedDocument;
 use App\Models\Job;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -32,12 +34,9 @@ class LegacyDashboardApiController extends Controller
     {
         $this->requireAuthenticatedDashboard($request);
 
-        return response()->json(Job::query()
-            ->orderByRaw("FIELD(overall_recommendation, 'Apply', 'Maybe', 'Pass')")
-            ->orderByDesc('career_fit_score')
-            ->orderByDesc('life_fit_score')
-            ->orderByDesc('last_seen')
-            ->orderBy('company')
+        return response()->json($request->user()
+            ->jobs()
+            ->dashboardRanked()
             ->get());
     }
 
@@ -63,7 +62,8 @@ class LegacyDashboardApiController extends Controller
     {
         $this->requireAuthenticatedDashboard($request);
         $data = $request->json()->all();
-        $job = Job::query()->findOrFail((int) ($data['id'] ?? 0));
+        $job = $this->findUserJob($request, (int) ($data['id'] ?? 0));
+        Gate::forUser($request->user())->authorize('changeStatus', $job);
         $status = trim((string) ($data['status'] ?? ''));
 
         if (! in_array($status, Job::WORKFLOW_STATUSES, true)) {
@@ -71,7 +71,7 @@ class LegacyDashboardApiController extends Controller
         }
 
         $job->update(['status' => $status]);
-        $job->events()->create(['event_type' => 'status', 'event_note' => $status]);
+        $job->events()->create(['user_id' => $job->user_id, 'event_type' => 'status', 'event_note' => $status]);
 
         return response()->json(['ok' => true, 'id' => $job->id, 'status' => $status]);
     }
@@ -79,14 +79,15 @@ class LegacyDashboardApiController extends Controller
     private function requestGenerate(Request $request): JsonResponse
     {
         $this->requireAuthenticatedDashboard($request);
-        $job = Job::query()->findOrFail((int) ($request->json('id') ?? 0));
+        $job = $this->findUserJob($request, (int) ($request->json('id') ?? 0));
+        Gate::forUser($request->user())->authorize('generateDocument', $job);
         $note = 'Custom application package generation requested from dashboard.';
 
         $job->update([
             'status' => 'Generate Requested',
             'notes' => $this->consolidateNotes($job->notes, $note),
         ]);
-        $job->events()->create(['event_type' => 'generate_requested', 'event_note' => $note]);
+        $job->events()->create(['user_id' => $job->user_id, 'event_type' => 'generate_requested', 'event_note' => $note]);
 
         return response()->json(['ok' => true, 'id' => $job->id, 'status' => 'Generate Requested']);
     }
@@ -95,7 +96,7 @@ class LegacyDashboardApiController extends Controller
     {
         $this->requireApiToken($request);
         $data = $request->json()->all();
-        $job = Job::query()->findOrFail((int) ($data['id'] ?? 0));
+        $job = $this->findTokenOwnedJob((int) ($data['id'] ?? 0));
         $resume = trim((string) ($data['resume_file'] ?? ''));
         $cover = trim((string) ($data['cover_letter_file'] ?? ''));
 
@@ -115,7 +116,7 @@ class LegacyDashboardApiController extends Controller
         ]);
 
         $this->syncDocumentReferences($job);
-        $job->events()->create(['event_type' => 'generated', 'event_note' => $note]);
+        $job->events()->create(['user_id' => $job->user_id, 'event_type' => 'generated', 'event_note' => $note]);
 
         return response()->json(['ok' => true, 'id' => $job->id, 'status' => 'Ready for Review']);
     }
@@ -129,7 +130,14 @@ class LegacyDashboardApiController extends Controller
         }
 
         $data = $request->json()->all();
-        $job = Job::query()->findOrFail((int) ($data['id'] ?? 0));
+        $job = $request->user()
+            ? $this->findUserJob($request, (int) ($data['id'] ?? 0))
+            : $this->findTokenOwnedJob((int) ($data['id'] ?? 0));
+
+        if ($request->user()) {
+            Gate::forUser($request->user())->authorize('apply', $job);
+        }
+
         $status = trim((string) ($data['application_status'] ?? ''));
 
         if (! in_array($status, Job::APPLICATION_STATUSES, true)) {
@@ -153,7 +161,7 @@ class LegacyDashboardApiController extends Controller
         ]);
 
         $this->syncDocumentReferences($job);
-        $job->events()->create(['event_type' => 'application_queue', 'event_note' => trim($status.' '.$note)]);
+        $job->events()->create(['user_id' => $job->user_id, 'event_type' => 'application_queue', 'event_note' => trim($status.' '.$note)]);
 
         return response()->json(['ok' => true, 'id' => $job->id, 'application_status' => $status]);
     }
@@ -162,6 +170,7 @@ class LegacyDashboardApiController extends Controller
     {
         $this->requireApiToken($request);
         $data = $request->json()->all();
+        $owner = $this->singleTokenOwner();
         $company = trim((string) ($data['company'] ?? ''));
         $role = trim((string) ($data['role'] ?? ''));
         $url = trim((string) ($data['url'] ?? ''));
@@ -171,7 +180,7 @@ class LegacyDashboardApiController extends Controller
         }
 
         $urlHash = Job::urlHash($url, $company, $role);
-        $existing = Job::query()->where('url_hash', $urlHash)->first();
+        $existing = $owner->jobs()->where('url_hash', $urlHash)->first();
         $score = (int) ($data['match_score'] ?? 0);
         $status = trim((string) ($data['status'] ?? ''));
 
@@ -183,7 +192,8 @@ class LegacyDashboardApiController extends Controller
             $status = $existing->status;
         }
 
-        $job = Job::query()->updateOrCreate(['url_hash' => $urlHash], [
+        $job = Job::query()->updateOrCreate(['user_id' => $owner->id, 'url_hash' => $urlHash], [
+            'user_id' => $owner->id,
             'company' => $company,
             'role' => $role,
             'url' => $url,
@@ -252,6 +262,7 @@ class LegacyDashboardApiController extends Controller
     private function serveFile(Request $request): StreamedResponse|JsonResponse
     {
         $this->requireAuthenticatedDashboard($request);
+        $user = $request->user();
         $path = str_replace('\\', '/', trim((string) $request->query('path', '')));
 
         if ($path === '' || str_contains($path, "\0") || preg_match('#(^|/)\.\.(/|$)#', $path)) {
@@ -259,9 +270,17 @@ class LegacyDashboardApiController extends Controller
         }
 
         $document = GeneratedDocument::query()
-            ->where('v1_reference', $path)
-            ->orWhere('stored_path', 'generated-documents/'.$path)
+            ->where('user_id', $user->id)
+            ->where(function ($query) use ($path): void {
+                $query
+                    ->where('v1_reference', $path)
+                    ->orWhere('stored_path', 'generated-documents/'.$path);
+            })
             ->first();
+
+        if ($document) {
+            Gate::forUser($user)->authorize('download', $document);
+        }
 
         $storedPath = $document?->stored_path ?: 'generated-documents/'.$path;
 
@@ -291,6 +310,8 @@ class LegacyDashboardApiController extends Controller
                 'job_id' => $job->id,
                 'document_type' => $type,
                 'v1_reference' => $reference,
+            ], [
+                'user_id' => $job->user_id,
             ]);
         }
     }
@@ -298,6 +319,29 @@ class LegacyDashboardApiController extends Controller
     private function requireAuthenticatedDashboard(Request $request): void
     {
         abort_unless($request->user(), 401, 'Dashboard login required.');
+    }
+
+    private function findUserJob(Request $request, int $id): Job
+    {
+        return $request->user()
+            ->jobs()
+            ->whereKey($id)
+            ->firstOrFail();
+    }
+
+    private function findTokenOwnedJob(int $id): Job
+    {
+        return $this->singleTokenOwner()
+            ->jobs()
+            ->whereKey($id)
+            ->firstOrFail();
+    }
+
+    private function singleTokenOwner(): User
+    {
+        abort_unless(User::query()->count() === 1, 409, 'Token actions require an explicit source connection owner before multi-user use.');
+
+        return User::query()->firstOrFail();
     }
 
     private function requireApiToken(Request $request): void
