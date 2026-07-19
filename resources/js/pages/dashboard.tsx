@@ -43,6 +43,10 @@ async function postAction(action: string, payload: Record<string, unknown>) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-TOKEN':
+                document
+                    .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+                    ?.getAttribute('content') ?? '',
             Accept: 'application/json',
         },
         body: JSON.stringify(payload),

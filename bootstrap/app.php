@@ -24,9 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        $middleware->validateCsrfTokens(except: [
-            'api.php',
-        ]);
+        $middleware->validateCsrfTokens();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
