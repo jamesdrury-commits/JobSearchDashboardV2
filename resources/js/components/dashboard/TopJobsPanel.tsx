@@ -2,6 +2,7 @@ import { ExternalLink, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { JobSummary } from '@/types/dashboard';
+import { RecommendationBadge } from './ScoreBadge';
 import { scoreClass } from './score-utils';
 
 type TopJobsPanelProps = {
@@ -100,9 +101,9 @@ function TopJobRow({
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant="outline">
-                    {job.overall_recommendation || 'Maybe'}
-                </Badge>
+                <RecommendationBadge
+                    value={job.overall_recommendation || 'Maybe'}
+                />
                 <Badge variant="outline">{job.status}</Badge>
                 {job.source_lane && (
                     <Badge variant="outline">{job.source_lane}</Badge>
