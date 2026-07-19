@@ -3,12 +3,22 @@
 namespace Tests\Feature;
 
 use App\Models\Job;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ImportedDashboardBaselineTest extends TestCase
 {
     use RefreshDatabase;
+
+    private User $owner;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->owner = User::factory()->create();
+    }
 
     public function test_imported_scores_match_v2_import_baseline(): void
     {
@@ -39,6 +49,7 @@ class ImportedDashboardBaselineTest extends TestCase
 
         Job::query()->create([
             'v1_job_id' => 900000001,
+            'user_id' => $this->owner->id,
             'company' => 'Lower Ranked Baseline Control',
             'role' => 'Control Role',
             'url_hash' => Job::urlHash('', 'Lower Ranked Baseline Control', 'Control Role'),
@@ -78,6 +89,7 @@ class ImportedDashboardBaselineTest extends TestCase
     {
         return Job::query()->create([
             'v1_job_id' => $row['v1_job_id'],
+            'user_id' => $this->owner->id,
             'company' => $row['company'],
             'role' => $row['role'],
             'url_hash' => Job::urlHash('', $row['company'], $row['role']),

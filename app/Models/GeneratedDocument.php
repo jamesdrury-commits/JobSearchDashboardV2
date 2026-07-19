@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GeneratedDocument extends Model
 {
     protected $fillable = [
+        'user_id',
         'job_id',
         'document_type',
         'v1_reference',
@@ -19,5 +20,10 @@ class GeneratedDocument extends Model
     public function job(): BelongsTo
     {
         return $this->belongsTo(Job::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

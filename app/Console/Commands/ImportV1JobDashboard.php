@@ -7,6 +7,7 @@ use App\Models\DataImportRun;
 use App\Models\GeneratedDocument;
 use App\Models\Job;
 use App\Models\JobEvent;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +19,8 @@ class ImportV1JobDashboard extends Command
     protected $signature = 'jobsearch:import-v1
         {--dry-run : Read and validate V1 data without writing to V2}
         {--copy-files : Copy V1 generated files into V2 private storage}
-        {--limit= : Limit imported jobs for testing}';
+        {--limit= : Limit imported jobs for testing}
+        {--owner-email= : User email that should own imported rows}';
 
     protected $description = 'Import V1 Job Search Assistant dashboard data into the isolated V2 database.';
 
@@ -27,6 +29,7 @@ class ImportV1JobDashboard extends Command
         $dryRun = (bool) $this->option('dry-run');
         $copyFiles = (bool) $this->option('copy-files');
         $limit = $this->option('limit') !== null ? (int) $this->option('limit') : null;
+        $ownerId = $dryRun ? null : $this->resolveOwnerId();
 
         $run = DataImportRun::query()->create([
             'mode' => $dryRun ? 'dry-run' : ($copyFiles ? 'copy-files' : 'database-only'),
@@ -37,6 +40,7 @@ class ImportV1JobDashboard extends Command
                 'v2_database' => config('database.connections.'.config('database.default').'.database'),
                 'copy_files' => $copyFiles,
                 'limit' => $limit,
+                'owner_id' => $ownerId,
             ],
         ]);
 
@@ -52,8 +56,8 @@ class ImportV1JobDashboard extends Command
             $this->info("Read {$rows->count()} V1 job row(s).");
 
             if (! $dryRun) {
-                DB::transaction(function () use ($rows, $copyFiles, $run): void {
-                    $this->importJobs($rows, $copyFiles, $run);
+                DB::transaction(function () use ($rows, $copyFiles, $run, $ownerId): void {
+                    $this->importJobs($rows, $copyFiles, $run, $ownerId);
                     $this->importEvents($run);
                     $this->importRunStatuses();
                 });
@@ -85,14 +89,14 @@ class ImportV1JobDashboard extends Command
         }
     }
 
-    private function importJobs(iterable $rows, bool $copyFiles, DataImportRun $run): void
+    private function importJobs(iterable $rows, bool $copyFiles, DataImportRun $run, int $ownerId): void
     {
         $imported = 0;
         $documents = 0;
 
         foreach ($rows as $row) {
             try {
-                $payload = $this->mapJobRow((array) $row);
+                $payload = $this->mapJobRow((array) $row, $ownerId);
                 $job = Job::query()->updateOrCreate(
                     ['v1_job_id' => $payload['v1_job_id']],
                     $payload,
@@ -128,6 +132,7 @@ class ImportV1JobDashboard extends Command
                     'v1_event_id' => $row->id,
                 ], [
                     'job_id' => $job->id,
+                    'user_id' => $job->user_id,
                     'event_type' => (string) $row->event_type,
                     'event_note' => $row->event_note,
                     'created_at' => $row->created_at ?? now(),
@@ -163,7 +168,7 @@ class ImportV1JobDashboard extends Command
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
-    private function mapJobRow(array $row): array
+    private function mapJobRow(array $row, ?int $ownerId = null): array
     {
         $company = trim((string) ($row['company'] ?? ''));
         $role = trim((string) ($row['role'] ?? ''));
@@ -174,6 +179,7 @@ class ImportV1JobDashboard extends Command
 
         return [
             'v1_job_id' => (int) $row['id'],
+            'user_id' => $ownerId,
             'company' => $company,
             'role' => $role,
             'url' => $row['url'] ?? '',
@@ -250,6 +256,7 @@ class ImportV1JobDashboard extends Command
                 'document_type' => $type,
                 'v1_reference' => $reference,
             ], [
+                'user_id' => $job->user_id,
                 'stored_path' => $storedPath,
                 'mime_type' => $storedPath ? Storage::mimeType($storedPath) : null,
                 'size_bytes' => $storedPath ? Storage::size($storedPath) : null,
@@ -258,6 +265,27 @@ class ImportV1JobDashboard extends Command
         }
 
         return $count;
+    }
+
+    private function resolveOwnerId(): int
+    {
+        $ownerEmail = trim((string) $this->option('owner-email'));
+
+        if ($ownerEmail !== '') {
+            $user = User::query()->where('email', $ownerEmail)->first();
+
+            if (! $user) {
+                throw new \InvalidArgumentException("No user exists for owner email [{$ownerEmail}].");
+            }
+
+            return $user->id;
+        }
+
+        if (User::query()->count() === 1) {
+            return User::query()->value('id');
+        }
+
+        throw new \InvalidArgumentException('Import requires --owner-email when the application has zero or multiple users.');
     }
 
     private function copyDocumentReference(string $reference): ?string

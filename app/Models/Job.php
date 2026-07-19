@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Job extends Model
@@ -42,6 +43,7 @@ class Job extends Model
 
     protected $fillable = [
         'v1_job_id',
+        'user_id',
         'company',
         'role',
         'url',
@@ -99,9 +101,29 @@ class Job extends Model
         return $this->hasMany(JobEvent::class);
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function generatedDocuments(): HasMany
     {
         return $this->hasMany(GeneratedDocument::class);
+    }
+
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(JobNote::class);
     }
 
     /**
