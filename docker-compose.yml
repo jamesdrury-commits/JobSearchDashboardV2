@@ -32,6 +32,22 @@ services:
     networks:
       - jobsearch-v2-net
 
+  jobsearch-v2-worker:
+    container_name: jobsearch-v2-worker
+    image: jobsearch-v2-app:local
+    depends_on:
+      - jobsearch-v2-app
+    working_dir: /var/www/html
+    command: sh -lc "php artisan queue:work database --queue=default --sleep=2 --tries=3 --timeout=120"
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www/html
+      - jobsearch-v2-vendor:/var/www/html/vendor
+      - jobsearch-v2-storage:/var/www/html/storage
+    networks:
+      - jobsearch-v2-net
+
   jobsearch-v2-node:
     container_name: jobsearch-v2-node
     image: jobsearch-v2-app:local

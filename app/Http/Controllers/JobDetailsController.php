@@ -34,6 +34,10 @@ class JobDetailsController extends Controller
             'jobNotes' => fn ($query) => $query
                 ->latest()
                 ->select(['id', 'user_id', 'job_id', 'body_markdown', 'source', 'created_at']),
+            'operations' => fn ($query) => $query
+                ->latest()
+                ->limit(20)
+                ->select(['id', 'user_id', 'job_id', 'operation_type', 'status', 'metadata', 'failure_reason', 'queued_at', 'started_at', 'finished_at']),
         ]);
 
         /** @var UserPreference|null $preferences */
@@ -95,6 +99,15 @@ class JobDetailsController extends Controller
                 'warnings' => $application->warnings,
                 'created_at' => $application->created_at?->toIso8601String(),
                 'updated_at' => $application->updated_at?->toIso8601String(),
+            ])->values(),
+            'operations' => $job->operations->map(fn ($operation): array => [
+                'id' => $operation->id,
+                'operation_type' => $operation->operation_type,
+                'status' => $operation->status,
+                'failure_reason' => $operation->failure_reason,
+                'queued_at' => $operation->queued_at?->toIso8601String(),
+                'started_at' => $operation->started_at?->toIso8601String(),
+                'finished_at' => $operation->finished_at?->toIso8601String(),
             ])->values(),
             'events' => $job->events->map(fn ($event): array => [
                 'id' => $event->id,

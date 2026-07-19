@@ -27,6 +27,7 @@ export type JobSummary = {
     application_ready_at: string | null;
     approval_required: boolean;
     document_count: number;
+    latest_operation: JobOperation | null;
 };
 
 export type PaginatedJobs = {
@@ -89,10 +90,21 @@ export type JobDetail = JobSummary & {
         created_at: string | null;
         updated_at: string | null;
     }>;
+    operations: JobOperation[];
     events: Array<{
         id: number;
         event_type: string;
         event_note: string | null;
         created_at: string | null;
     }>;
+};
+
+export type JobOperation = {
+    id: number;
+    operation_type: string;
+    status: 'queued' | 'processing' | 'completed' | 'failed' | string;
+    queued_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    failure_reason?: string | null;
 };

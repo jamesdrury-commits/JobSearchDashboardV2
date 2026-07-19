@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Job;
+use App\Models\JobOperation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -79,5 +80,46 @@ class DashboardTest extends TestCase
             ->assertJsonPath('company', 'Details Drawer Co')
             ->assertJsonPath('description', 'Full description belongs in the drawer response.')
             ->assertJsonStructure(['priority_score', 'score_explanation']);
+    }
+
+    public function test_generate_request_creates_user_owned_queue_operations(): void
+    {
+        $user = User::factory()->create();
+        $job = Job::query()->create([
+            'user_id' => $user->id,
+            'company' => 'Queued Package Co',
+            'role' => 'Salesforce Product Owner',
+            'url_hash' => Job::urlHash('', 'Queued Package Co', 'Salesforce Product Owner'),
+            'match_score' => 90,
+            'career_fit_score' => 88,
+            'life_fit_score' => 84,
+            'overall_recommendation' => 'Apply',
+        ]);
+
+        $this->actingAs($user);
+
+        $this->postJson('/api.php?action=generate', ['id' => $job->id])
+            ->assertOk()
+            ->assertJsonPath('status', 'Generate Requested');
+
+        $this->assertDatabaseHas('job_operations', [
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'operation_type' => 'resume_generation',
+            'status' => 'completed',
+        ]);
+        $this->assertDatabaseHas('job_operations', [
+            'user_id' => $user->id,
+            'job_id' => $job->id,
+            'operation_type' => 'cover_letter_generation',
+            'status' => 'completed',
+        ]);
+        $this->assertSame(2, JobOperation::query()->whereBelongsTo($user)->count());
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard')
+                ->where('jobs.data.0.latest_operation.status', 'completed'));
     }
 }

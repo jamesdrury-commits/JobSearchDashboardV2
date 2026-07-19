@@ -18,6 +18,15 @@ export function ApplicationTimeline({ job }: ApplicationTimelineProps) {
             note: event.event_note,
             at: event.created_at,
         })),
+        ...job.operations.map((operation) => ({
+            id: `operation-${operation.id}`,
+            label: `${operation.operation_type.replaceAll('_', ' ')} ${operation.status}`,
+            note: operation.failure_reason ?? null,
+            at:
+                operation.finished_at ??
+                operation.started_at ??
+                operation.queued_at,
+        })),
     ].sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
 
     return (

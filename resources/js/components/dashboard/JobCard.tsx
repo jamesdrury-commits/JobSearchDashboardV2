@@ -81,6 +81,15 @@ export function JobCard({
                                 {job.document_count} docs
                             </Badge>
                         )}
+                        {job.latest_operation && (
+                            <Badge variant="secondary">
+                                {job.latest_operation.operation_type.replaceAll(
+                                    '_',
+                                    ' ',
+                                )}
+                                : {job.latest_operation.status}
+                            </Badge>
+                        )}
                     </div>
                     <h3 className="mt-3 text-lg font-semibold">
                         {job.company}

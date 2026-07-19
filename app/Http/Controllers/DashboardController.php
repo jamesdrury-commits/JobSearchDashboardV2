@@ -28,6 +28,7 @@ class DashboardController extends Controller
 
         $jobs = $this->applyFilters($userJobs(), $filters)
             ->select($this->summaryColumns())
+            ->with(['latestOperation' => fn ($query) => $query->select($this->latestOperationColumns())])
             ->withCount(['documents', 'generatedDocuments'])
             ->dashboardRanked()
             ->paginate($perPage)
@@ -36,6 +37,7 @@ class DashboardController extends Controller
 
         $topJobs = $userJobs()
             ->select($this->summaryColumns())
+            ->with(['latestOperation' => fn ($query) => $query->select($this->latestOperationColumns())])
             ->withCount(['documents', 'generatedDocuments'])
             ->dashboardRanked()
             ->limit(20)
@@ -154,6 +156,23 @@ class DashboardController extends Controller
     }
 
     /**
+     * @return list<string>
+     */
+    private function latestOperationColumns(): array
+    {
+        return [
+            'job_operations.id',
+            'job_operations.user_id',
+            'job_operations.job_id',
+            'job_operations.operation_type',
+            'job_operations.status',
+            'job_operations.queued_at',
+            'job_operations.started_at',
+            'job_operations.finished_at',
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function summaryPayload(Job $job, JobPriorityScorer $scorer, ?UserPreference $preferences): array
@@ -187,6 +206,14 @@ class DashboardController extends Controller
             'application_ready_at' => $job->application_ready_at?->toIso8601String(),
             'approval_required' => $job->approval_required,
             'document_count' => ($job->documents_count ?? 0) + ($job->generated_documents_count ?? 0),
+            'latest_operation' => $job->latestOperation ? [
+                'id' => $job->latestOperation->id,
+                'operation_type' => $job->latestOperation->operation_type,
+                'status' => $job->latestOperation->status,
+                'queued_at' => $job->latestOperation->queued_at?->toIso8601String(),
+                'started_at' => $job->latestOperation->started_at?->toIso8601String(),
+                'finished_at' => $job->latestOperation->finished_at?->toIso8601String(),
+            ] : null,
         ];
     }
 }

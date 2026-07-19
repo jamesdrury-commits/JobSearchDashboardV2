@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\GeneratedDocument;
 use App\Models\Job;
+use App\Models\JobOperation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -66,6 +67,19 @@ class TenantIsolationTest extends TestCase
     {
         $this->assertFalse(Gate::forUser($this->userB)->allows('view', $this->userAJob));
         $this->assertFalse(Gate::forUser($this->userB)->allows('delete', $this->userAJob));
+    }
+
+    public function test_user_b_cannot_view_user_a_queue_operations_by_policy(): void
+    {
+        $operation = JobOperation::query()->create([
+            'user_id' => $this->userA->id,
+            'job_id' => $this->userAJob->id,
+            'operation_type' => 'resume_generation',
+            'status' => 'queued',
+            'queued_at' => now(),
+        ]);
+
+        $this->assertFalse(Gate::forUser($this->userB)->allows('view', $operation));
     }
 
     public function test_user_b_cannot_modify_user_a_job_status(): void

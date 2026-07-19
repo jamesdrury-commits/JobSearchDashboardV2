@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\RunDashboardOperation;
 use App\Models\DashboardRunStatus;
 use App\Models\GeneratedDocument;
 use App\Models\Job;
@@ -87,6 +88,18 @@ class LegacyDashboardApiController extends Controller
             'status' => 'Generate Requested',
             'notes' => $this->consolidateNotes($job->notes, $note),
         ]);
+        foreach (['resume_generation', 'cover_letter_generation'] as $type) {
+            $operation = $job->operations()->create([
+                'user_id' => $job->user_id,
+                'operation_type' => $type,
+                'status' => 'queued',
+                'queued_at' => now(),
+                'metadata' => ['requested_from' => 'dashboard'],
+            ]);
+
+            RunDashboardOperation::dispatch($operation->id);
+        }
+
         $job->events()->create(['user_id' => $job->user_id, 'event_type' => 'generate_requested', 'event_note' => $note]);
 
         return response()->json(['ok' => true, 'id' => $job->id, 'status' => 'Generate Requested']);

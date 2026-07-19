@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Job extends Model
 {
@@ -129,6 +130,16 @@ class Job extends Model
     public function jobNotes(): HasMany
     {
         return $this->hasMany(JobNote::class);
+    }
+
+    public function operations(): HasMany
+    {
+        return $this->hasMany(JobOperation::class);
+    }
+
+    public function latestOperation(): HasOne
+    {
+        return $this->hasOne(JobOperation::class)->latestOfMany();
     }
 
     /**
