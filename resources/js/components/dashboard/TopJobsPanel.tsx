@@ -1,7 +1,8 @@
 import { ExternalLink, Trophy } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { JobSummary } from '@/types/dashboard';
-import { PriorityScore } from './PriorityScore';
+import { scoreClass } from './score-utils';
 
 type TopJobsPanelProps = {
     jobs: JobSummary[];
@@ -9,8 +10,13 @@ type TopJobsPanelProps = {
 };
 
 export function TopJobsPanel({ jobs, onReview }: TopJobsPanelProps) {
+    const columns = [
+        { title: 'Apply First', jobs: jobs.slice(0, 10), offset: 0 },
+        { title: 'Second Look', jobs: jobs.slice(10, 20), offset: 10 },
+    ];
+
     return (
-        <section className="rounded-md border bg-background">
+        <section className="rounded-md border border-sky-200 bg-sky-50/45 dark:border-sky-950 dark:bg-sky-950/20">
             <div className="flex flex-col gap-2 border-b p-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -26,48 +32,99 @@ export function TopJobsPanel({ jobs, onReview }: TopJobsPanelProps) {
                     settings
                 </span>
             </div>
-            <div className="divide-y">
-                {jobs.map((job, index) => (
-                    <div
-                        key={job.id}
-                        className="grid gap-3 p-3 md:grid-cols-[44px_1fr_auto] md:items-center"
-                    >
-                        <div className="text-sm font-semibold text-muted-foreground">
-                            #{index + 1}
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+                {columns.map((column) => (
+                    <div key={column.title} className="space-y-3">
+                        <h3 className="text-base font-semibold text-sky-950 dark:text-sky-100">
+                            {column.title}
+                        </h3>
+                        <div className="space-y-2">
+                            {column.jobs.map((job, index) => (
+                                <TopJobRow
+                                    key={job.id}
+                                    job={job}
+                                    rank={column.offset + index + 1}
+                                    onReview={onReview}
+                                />
+                            ))}
                         </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function TopJobRow({
+    job,
+    rank,
+    onReview,
+}: {
+    job: JobSummary;
+    rank: number;
+    onReview: (job: JobSummary) => void;
+}) {
+    return (
+        <article className="rounded-md border border-sky-200 bg-background p-3 shadow-xs dark:border-sky-950">
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <div className="min-w-0">
+                    <div className="flex items-start gap-2">
+                        <span className="shrink-0 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            {rank}.
+                        </span>
                         <div className="min-w-0">
-                            <p className="truncate font-medium">
+                            <p className="truncate font-semibold">
                                 {job.company}
                             </p>
                             <p className="truncate text-sm text-muted-foreground">
                                 {job.role}
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <PriorityScore score={job.priority_score} />
-                            {job.url && (
-                                <Button asChild size="sm" variant="outline">
-                                    <a
-                                        href={job.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <ExternalLink />
-                                        Open Posting
-                                    </a>
-                                </Button>
-                            )}
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => onReview(job)}
-                            >
-                                Review Package
-                            </Button>
-                        </div>
                     </div>
-                ))}
+                    <p className="mt-2 truncate text-sm font-medium text-muted-foreground">
+                        {job.salary || 'Salary unknown'} -{' '}
+                        {job.remote_status || 'Location unknown'}
+                    </p>
+                </div>
+                <div className="text-left sm:text-right">
+                    <strong
+                        className={`block text-xl leading-none ${scoreClass(job.priority_score)}`}
+                    >
+                        {job.priority_score}
+                    </strong>
+                    <span className="text-xs font-medium text-muted-foreground">
+                        Career {job.career_fit_score} / Life{' '}
+                        {job.life_fit_score}
+                    </span>
+                </div>
             </div>
-        </section>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Badge variant="outline">
+                    {job.overall_recommendation || 'Maybe'}
+                </Badge>
+                <Badge variant="outline">{job.status}</Badge>
+                {job.source_lane && (
+                    <Badge variant="outline">{job.source_lane}</Badge>
+                )}
+                <div className="ml-auto flex flex-wrap gap-2">
+                    {job.url && (
+                        <Button asChild size="sm" variant="outline">
+                            <a href={job.url} target="_blank" rel="noreferrer">
+                                <ExternalLink />
+                                Open Posting
+                            </a>
+                        </Button>
+                    )}
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onReview(job)}
+                    >
+                        Review Package
+                    </Button>
+                </div>
+            </div>
+        </article>
     );
 }
