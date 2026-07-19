@@ -1,7 +1,7 @@
 import { ExternalLink, Trophy } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { JobSummary } from '@/types/dashboard';
+import { InfoPill, JobSignalPills } from './JobSignalPills';
 import { RecommendationBadge } from './ScoreBadge';
 import { scoreClass } from './score-utils';
 
@@ -104,10 +104,15 @@ function TopJobRow({
                 <RecommendationBadge
                     value={job.overall_recommendation || 'Maybe'}
                 />
-                <Badge variant="outline">{job.status}</Badge>
+                <InfoPill title="Current workflow status. Change it from the More Actions menu in the full list.">
+                    Status: {job.status}
+                </InfoPill>
                 {job.source_lane && (
-                    <Badge variant="outline">{job.source_lane}</Badge>
+                    <InfoPill title="Imported source or sourcing lane. This is informational.">
+                        Source: {job.source_lane}
+                    </InfoPill>
                 )}
+                <JobSignalPills job={job} compact />
                 <div className="ml-auto flex flex-wrap gap-2">
                     {job.url && (
                         <Button asChild size="sm" variant="outline">

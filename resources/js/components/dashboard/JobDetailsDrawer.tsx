@@ -11,6 +11,7 @@ import {
 import type { JobDetail, JobSummary } from '@/types/dashboard';
 import { ApplicationTimeline } from './ApplicationTimeline';
 import { DocumentPanel } from './DocumentPanel';
+import { JobSignalPills } from './JobSignalPills';
 import { ScoreExplanation } from './ScoreExplanation';
 import { splitNotes } from './score-utils';
 
@@ -39,12 +40,19 @@ export function JobDetailsDrawer({
         const controller = new AbortController();
 
         fetch(`/dashboard/jobs/${job.id}`, {
-            headers: { Accept: 'application/json' },
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
             signal: controller.signal,
         })
             .then(async (response) => {
                 if (!response.ok) {
-                    throw new Error('Unable to load job details.');
+                    throw new Error(
+                        response.status === 404
+                            ? 'Unable to load this job package.'
+                            : 'Unable to load job details.',
+                    );
                 }
 
                 return (await response.json()) as JobDetail;
@@ -69,7 +77,8 @@ export function JobDetailsDrawer({
     }, [job, open]);
 
     const loadedDetail = detail?.id === job?.id ? detail : null;
-    const shownError = error && job && error.jobId === job.id ? error.message : null;
+    const shownError =
+        error && job && error.jobId === job.id ? error.message : null;
     const loading = Boolean(open && job && !loadedDetail && !shownError);
     const shown = loadedDetail ?? job;
 
@@ -103,6 +112,7 @@ export function JobDetailsDrawer({
                                 {shown.remote_status || 'Location unknown'}
                             </span>
                         </div>
+                        <JobSignalPills job={shown} />
 
                         {loading && (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -127,7 +137,10 @@ export function JobDetailsDrawer({
                                     </h3>
                                     <div className="grid gap-3">
                                         {[
-                                            ['Why', loadedDetail.why_considering],
+                                            [
+                                                'Why',
+                                                loadedDetail.why_considering,
+                                            ],
                                             [
                                                 'Tradeoffs',
                                                 loadedDetail.tradeoffs_watch_outs,
@@ -136,7 +149,10 @@ export function JobDetailsDrawer({
                                                 'Local exception',
                                                 loadedDetail.local_exception_reason,
                                             ],
-                                            ['Commute', loadedDetail.commute_notes],
+                                            [
+                                                'Commute',
+                                                loadedDetail.commute_notes,
+                                            ],
                                             [
                                                 'Benefits / Pension',
                                                 loadedDetail.benefits_pension_notes,
@@ -187,7 +203,7 @@ export function JobDetailsDrawer({
                                     <h3 className="text-sm font-semibold">
                                         Full job description
                                     </h3>
-                                    <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm">
+                                    <p className="rounded-md bg-muted/40 p-3 text-sm whitespace-pre-wrap">
                                         {loadedDetail.description ||
                                             'No full description is stored yet.'}
                                     </p>

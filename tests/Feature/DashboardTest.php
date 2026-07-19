@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Job;
+use App\Models\JobEvent;
 use App\Models\JobOperation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,6 +81,40 @@ class DashboardTest extends TestCase
             ->assertJsonPath('company', 'Details Drawer Co')
             ->assertJsonPath('description', 'Full description belongs in the drawer response.')
             ->assertJsonStructure(['priority_score', 'score_explanation']);
+    }
+
+    public function test_job_details_load_recent_timeline_events_for_package_drawer(): void
+    {
+        $user = User::factory()->create();
+        $job = Job::query()->create([
+            'user_id' => $user->id,
+            'company' => 'Timeline Package Co',
+            'role' => 'Siebel Support Engineer',
+            'url_hash' => Job::urlHash('', 'Timeline Package Co', 'Siebel Support Engineer'),
+            'match_score' => 86,
+            'career_fit_score' => 84,
+            'life_fit_score' => 79,
+            'overall_recommendation' => 'Apply',
+            'description' => 'Full package description.',
+        ]);
+
+        foreach (range(1, 30) as $index) {
+            JobEvent::query()->create([
+                'user_id' => $user->id,
+                'job_id' => $job->id,
+                'event_type' => 'status',
+                'event_note' => "Timeline event {$index}",
+                'created_at' => now()->subMinutes(30 - $index),
+                'updated_at' => now()->subMinutes(30 - $index),
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        $this->getJson(route('dashboard.jobs.show', $job))
+            ->assertOk()
+            ->assertJsonCount(25, 'events')
+            ->assertJsonPath('events.0.event_note', 'Timeline event 30');
     }
 
     public function test_generate_request_creates_user_owned_queue_operations(): void

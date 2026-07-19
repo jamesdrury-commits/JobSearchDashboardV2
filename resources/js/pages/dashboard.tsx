@@ -276,9 +276,7 @@ export default function Dashboard({
                             onReview={openReview}
                             onGenerate={requestGenerate}
                             onStatusChange={updateStatus}
-                            onApplicationStatusChange={
-                                updateApplicationStatus
-                            }
+                            onApplicationStatusChange={updateApplicationStatus}
                         />
                     ))}
 
@@ -288,7 +286,9 @@ export default function Dashboard({
                                 <Button
                                     key={`${link.label}-${link.url}`}
                                     asChild={Boolean(link.url)}
-                                    variant={link.active ? 'default' : 'outline'}
+                                    variant={
+                                        link.active ? 'default' : 'outline'
+                                    }
                                     size="sm"
                                     disabled={!link.url}
                                 >

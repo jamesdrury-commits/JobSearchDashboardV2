@@ -18,6 +18,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { JobSummary } from '@/types/dashboard';
+import { InfoPill, JobSignalPills } from './JobSignalPills';
 import { PriorityScore } from './PriorityScore';
 import { RecommendationBadge, ScoreBadge } from './ScoreBadge';
 import { splitNotes } from './score-utils';
@@ -61,14 +62,19 @@ export function JobCard({
             <div className="grid gap-4 xl:grid-cols-[1fr_auto]">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">
+                        <InfoPill title="Imported source or sourcing lane. This is informational.">
+                            Source:{' '}
                             {job.source_lane || job.source || 'Job board'}
-                        </Badge>
+                        </InfoPill>
                         <RecommendationBadge
                             value={job.overall_recommendation || 'Maybe'}
                         />
                         {job.executive_watch && (
-                            <Badge variant="secondary">
+                            <Badge
+                                variant="secondary"
+                                title="Imported executive/operations watch flag."
+                                className="cursor-default select-none"
+                            >
                                 Early operations watch
                             </Badge>
                         )}
@@ -77,12 +83,16 @@ export function JobCard({
                             applicationStatus={job.application_status}
                         />
                         {job.document_count > 0 && (
-                            <Badge variant="outline">
+                            <InfoPill title="Generated resume, cover letter, or review document references are attached.">
                                 {job.document_count} docs
-                            </Badge>
+                            </InfoPill>
                         )}
                         {job.latest_operation && (
-                            <Badge variant="secondary">
+                            <Badge
+                                variant="secondary"
+                                title="Most recent queued background operation for this job."
+                                className="cursor-default select-none"
+                            >
                                 {job.latest_operation.operation_type.replaceAll(
                                     '_',
                                     ' ',
@@ -101,6 +111,9 @@ export function JobCard({
                         {job.salary || 'Salary unknown'} -{' '}
                         {job.remote_status || 'Location unknown'}
                     </p>
+                    <div className="mt-3">
+                        <JobSignalPills job={job} />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 sm:w-[340px]">
@@ -120,9 +133,7 @@ export function JobCard({
                             <span className="text-xs font-medium text-muted-foreground">
                                 {label}
                             </span>
-                            <p className="mt-1 line-clamp-3 text-sm">
-                                {value}
-                            </p>
+                            <p className="mt-1 line-clamp-3 text-sm">{value}</p>
                         </div>
                     ))}
                 </div>
@@ -171,7 +182,9 @@ export function JobCard({
                     <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuLabel>Workflow</DropdownMenuLabel>
                         <DropdownMenuItem
-                            onSelect={() => onStatusChange(job.id, 'Interested')}
+                            onSelect={() =>
+                                onStatusChange(job.id, 'Interested')
+                            }
                         >
                             Interested
                         </DropdownMenuItem>
@@ -180,9 +193,7 @@ export function JobCard({
                         >
                             Pass
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onSelect={() => onGenerate(job.id)}
-                        >
+                        <DropdownMenuItem onSelect={() => onGenerate(job.id)}>
                             <Sparkles />
                             Generate package
                         </DropdownMenuItem>

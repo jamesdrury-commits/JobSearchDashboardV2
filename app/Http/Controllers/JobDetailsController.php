@@ -24,21 +24,29 @@ class JobDetailsController extends Controller
             'documents' => fn ($query) => $query
                 ->latest()
                 ->select(['id', 'user_id', 'job_id', 'generated_document_id', 'document_type', 'display_filename', 'original_filename', 'mime_type', 'size_bytes', 'created_at']),
-            'events' => fn ($query) => $query
-                ->latest()
-                ->limit(25)
-                ->select(['id', 'user_id', 'job_id', 'event_type', 'event_note', 'created_at']),
             'generatedDocuments' => fn ($query) => $query
                 ->latest()
                 ->select(['id', 'user_id', 'job_id', 'document_type', 'v1_reference', 'stored_path', 'mime_type', 'size_bytes', 'created_at']),
             'jobNotes' => fn ($query) => $query
                 ->latest()
                 ->select(['id', 'user_id', 'job_id', 'body_markdown', 'source', 'created_at']),
-            'operations' => fn ($query) => $query
+        ]);
+
+        $job->setRelation(
+            'events',
+            $job->events()
+                ->latest()
+                ->limit(25)
+                ->get(['id', 'user_id', 'job_id', 'event_type', 'event_note', 'created_at'])
+        );
+
+        $job->setRelation(
+            'operations',
+            $job->operations()
                 ->latest()
                 ->limit(20)
-                ->select(['id', 'user_id', 'job_id', 'operation_type', 'status', 'metadata', 'failure_reason', 'queued_at', 'started_at', 'finished_at']),
-        ]);
+                ->get(['id', 'user_id', 'job_id', 'operation_type', 'status', 'metadata', 'failure_reason', 'queued_at', 'started_at', 'finished_at'])
+        );
 
         /** @var UserPreference|null $preferences */
         $preferences = $request->user()->preferences()->first();
