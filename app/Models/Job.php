@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -101,6 +102,20 @@ class Job extends Model
     public function generatedDocuments(): HasMany
     {
         return $this->hasMany(GeneratedDocument::class);
+    }
+
+    /**
+     * @param  Builder<Job>  $query
+     * @return Builder<Job>
+     */
+    public function scopeDashboardRanked(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw("CASE overall_recommendation WHEN 'Apply' THEN 0 WHEN 'Maybe' THEN 1 WHEN 'Pass' THEN 2 ELSE 3 END")
+            ->orderByDesc('career_fit_score')
+            ->orderByDesc('life_fit_score')
+            ->orderByDesc('last_seen')
+            ->orderBy('company');
     }
 
     public static function urlHash(?string $url, string $company = '', string $role = ''): string

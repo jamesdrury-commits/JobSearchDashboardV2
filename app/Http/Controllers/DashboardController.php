@@ -13,11 +13,7 @@ class DashboardController extends Controller
     {
         $jobs = Job::query()
             ->with('generatedDocuments')
-            ->orderByRaw("CASE overall_recommendation WHEN 'Apply' THEN 0 WHEN 'Maybe' THEN 1 WHEN 'Pass' THEN 2 ELSE 3 END")
-            ->orderByDesc('career_fit_score')
-            ->orderByDesc('life_fit_score')
-            ->orderByDesc('last_seen')
-            ->orderBy('company')
+            ->dashboardRanked()
             ->get();
 
         return Inertia::render('dashboard', [
