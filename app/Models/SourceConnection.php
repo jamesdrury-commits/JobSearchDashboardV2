@@ -20,6 +20,7 @@ class SourceConnection extends Model
     protected function casts(): array
     {
         return [
+            'encrypted_credentials' => 'encrypted:array',
             'last_sync_at' => 'datetime',
             'metadata' => 'array',
         ];

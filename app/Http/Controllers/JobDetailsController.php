@@ -74,6 +74,7 @@ class JobDetailsController extends Controller
                 'mime_type' => $document->mime_type,
                 'size_bytes' => $document->size_bytes,
                 'created_at' => $document->created_at?->toIso8601String(),
+                'download_url' => route('dashboard.documents.download', $document),
             ])->values(),
             'generated_documents' => $job->generatedDocuments->map(fn (GeneratedDocument $document): array => [
                 'id' => $document->id,
@@ -82,6 +83,7 @@ class JobDetailsController extends Controller
                 'mime_type' => $document->mime_type,
                 'size_bytes' => $document->size_bytes,
                 'created_at' => $document->created_at?->toIso8601String(),
+                'download_url' => route('dashboard.generated-documents.download', $document),
             ])->values(),
             'job_notes' => $job->jobNotes->map(fn ($note): array => [
                 'id' => $note->id,

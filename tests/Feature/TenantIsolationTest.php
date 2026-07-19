@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Document;
 use App\Models\GeneratedDocument;
 use App\Models\Job;
 use App\Models\JobOperation;
@@ -118,16 +119,28 @@ class TenantIsolationTest extends TestCase
 
     public function test_user_b_cannot_download_user_a_documents(): void
     {
-        GeneratedDocument::query()->create([
+        $generatedDocument = GeneratedDocument::query()->create([
             'user_id' => $this->userA->id,
             'job_id' => $this->userAJob->id,
             'document_type' => 'resume',
             'v1_reference' => 'owner-a-resume.pdf',
         ]);
+        $document = Document::query()->create([
+            'user_id' => $this->userA->id,
+            'job_id' => $this->userAJob->id,
+            'document_type' => 'resume',
+            'disk' => 'local',
+            'path' => 'users/'.$this->userA->id.'/jobs/'.$this->userAJob->id.'/resume.pdf',
+            'display_filename' => 'owner-a-resume.pdf',
+        ]);
 
         $this->actingAs($this->userB);
 
         $this->getJson('/api.php?action=file&path=owner-a-resume.pdf')
+            ->assertNotFound();
+        $this->get(route('dashboard.generated-documents.download', $generatedDocument))
+            ->assertNotFound();
+        $this->get(route('dashboard.documents.download', $document))
             ->assertNotFound();
     }
 

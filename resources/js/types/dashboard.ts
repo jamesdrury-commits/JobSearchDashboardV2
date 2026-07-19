@@ -66,6 +66,7 @@ export type JobDocument = {
     mime_type: string | null;
     size_bytes: number | null;
     created_at: string | null;
+    download_url: string | null;
 };
 
 export type JobDetail = JobSummary & {
