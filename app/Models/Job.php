@@ -126,6 +126,11 @@ class Job extends Model
         return $this->hasMany(JobNote::class);
     }
 
+    public function jobNotes(): HasMany
+    {
+        return $this->hasMany(JobNote::class);
+    }
+
     /**
      * @param  Builder<Job>  $query
      * @return Builder<Job>

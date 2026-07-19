@@ -50,8 +50,16 @@ class TenantIsolationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('dashboard')
-                ->has('jobs', 1)
-                ->where('jobs.0.company', 'Owner B Company'));
+                ->has('jobs.data', 1)
+                ->where('jobs.data.0.company', 'Owner B Company'));
+    }
+
+    public function test_user_b_cannot_view_user_a_job_details(): void
+    {
+        $this->actingAs($this->userB);
+
+        $this->getJson(route('dashboard.jobs.show', $this->userAJob))
+            ->assertNotFound();
     }
 
     public function test_user_b_cannot_view_or_delete_user_a_job_by_policy(): void
@@ -81,6 +89,17 @@ class TenantIsolationTest extends TestCase
         ])->assertNotFound();
 
         $this->assertSame('Sourced - Needs Review', $this->userAJob->refresh()->status);
+    }
+
+    public function test_user_b_cannot_search_user_a_job_from_dashboard(): void
+    {
+        $this->actingAs($this->userB);
+
+        $this->get(route('dashboard', ['q' => 'Owner A Company']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('dashboard')
+                ->has('jobs.data', 0));
     }
 
     public function test_user_b_cannot_download_user_a_documents(): void
